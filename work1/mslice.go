@@ -36,7 +36,7 @@ func SliceCapAnalysis[T any](slices []T) (int, bool) {
 	ratios := float64(caps) / float64(length)
 	if caps <= 512 && ratios >= 2 {
 		return int(float64(caps) * 0.5), true
-	} else if caps > 512 && float64(ratios) > 1.25 {
+	} else if caps > 512 && float64(ratios) >= 1.25 {
 		return int(float64(caps) * 0.8), true
 	}
 	return caps, false
