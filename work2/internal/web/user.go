@@ -5,12 +5,10 @@ import (
 	"example/wb/internal/service"
 	"net/http"
 	"time"
-	"unsafe"
 
 	"github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-module/carbon/v2"
 )
 
 const (
@@ -90,6 +88,7 @@ func (h *UserHandler) SignUp(ctx *gin.Context) {
 	}
 	return
 }
+
 func (h *UserHandler) Login(ctx *gin.Context) {
 	type Req struct {
 		Email    string `json:"email"`
@@ -124,8 +123,17 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 	}
 
 }
+
 func (h *UserHandler) Profile(ctx *gin.Context) {
-	u, err := h.svc.Profile(ctx)
+
+	sess := sessions.Default(ctx)
+	uid := sess.Get("userId")
+	me, ok := uid.(int64)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+	}
+	u, err := h.svc.Profile(ctx, me)
+
 	type Resp struct {
 		NickName  string
 		Birthday  string
@@ -135,13 +143,14 @@ func (h *UserHandler) Profile(ctx *gin.Context) {
 	case nil:
 		ctx.JSONP(http.StatusOK, Resp{
 			NickName:  u.NickName,
-			Birthday:  u.Birthday.Format("2006-01-02"),
+			Birthday:  u.Birthday.Format(time.DateOnly),
 			Biography: u.Biography,
 		})
 	default:
 		ctx.String(http.StatusOK, "系统出错")
 	}
 }
+
 func (h *UserHandler) Edit(ctx *gin.Context) {
 
 	type EditReq struct {
@@ -172,20 +181,24 @@ func (h *UserHandler) Edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "个人简介的字数太长，超过了300个字符, 当前字符长度为", len(req.Biography))
 		return
 	}
-	ok, err := h.BirthdayRegexExp.MatchString(req.Birthday)
+	//
+	birthday, err := time.Parse(time.DateOnly, req.Birthday)
+	// ok, err := h.BirthdayRegexExp.MatchString(req.Birthday)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统出错")
-		return
-	}
-	if !ok {
 		ctx.String(http.StatusOK, "日期格式不对, 请输入yyyy-mm-dd的格式")
 		return
 	}
-	t := carbon.Parse(req.Birthday).ToStdTime()
-
+	sess := sessions.Default(ctx)
+	uid := sess.Get("userId")
+	me, ok := uid.(int64)
+	if !ok {
+		ctx.String(http.StatusOK, "系统出错")
+	}
+	// t := carbon.Parse(req.Birthday).ToStdTime()
 	err = h.svc.Edit(ctx, domain.User{
+		Id:        me,
 		NickName:  req.NickName,
-		Birthday:  (*time.Time)(unsafe.Pointer(&t)),
+		Birthday:  birthday,
 		Biography: req.Biography,
 	})
 	switch err {

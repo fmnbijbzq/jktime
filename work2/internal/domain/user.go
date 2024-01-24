@@ -7,7 +7,7 @@ type User struct {
 	Email     string
 	Password  string `json:"-"`
 	NickName  string
-	Birthday  *time.Time
+	Birthday  time.Time
 	Biography string
 	CreatedAt int64 `json:"-"`
 	UpdatedAT int64 `json:"-"`
