@@ -9,6 +9,7 @@ import (
 	"github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const (
@@ -38,10 +39,18 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 
 func (h *UserHandler) RegisterRoutes(g *gin.Engine) {
 	ug := g.Group("/user")
+	ug.GET("/hello", h.Hello)
 	ug.POST("/signup", h.SignUp)
-	ug.POST("/login", h.Login)
+	// ug.POST("/login", h.Login)
+	ug.POST("/login", h.LoginJWT)
 	ug.POST("/edit", h.Edit)
 	ug.GET("/profile", h.Profile)
+}
+
+func (h *UserHandler) Hello(ctx *gin.Context) {
+	ctx.String(http.StatusOK, "hello")
+	return
+
 }
 
 func (h *UserHandler) SignUp(ctx *gin.Context) {
@@ -124,15 +133,67 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 
 }
 
+func (h *UserHandler) LoginJWT(ctx *gin.Context) {
+	type Req struct {
+		Email    string `json:"email"`
+		Passowrd string `json:"password"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	u, err := h.svc.Login(ctx, domain.User{
+		Email:    req.Email,
+		Password: req.Passowrd,
+	})
+	switch err {
+	case nil:
+		token := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{
+			Id: u.Id,
+			RegisteredClaims: jwt.RegisteredClaims{
+				// 过期时间一分钟
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+			},
+		})
+		ss, err := token.SignedString(JWTtoken)
+		if err != nil {
+			ctx.String(http.StatusOK, "系统错误")
+		}
+		ctx.Header("x-jwt-token", ss)
+		// sess := sessions.Default(ctx)
+		// sess.Set("userId", u.Id)
+		// sess.Options(sessions.Options{
+		// 	MaxAge: 600,
+		// })
+		// err = sess.Save()
+		// if err != nil {
+		// 	ctx.String(http.StatusOK, "系统错误")
+		// 	return
+		// }
+		ctx.String(http.StatusOK, "登录成功")
+	case service.ErrInvalidUserOrPassword:
+		ctx.String(http.StatusOK, "用户名或者密码不对")
+	default:
+		ctx.String(http.StatusOK, "系统错误")
+	}
+
+}
+
 func (h *UserHandler) Profile(ctx *gin.Context) {
 
-	sess := sessions.Default(ctx)
-	uid := sess.Get("userId")
-	me, ok := uid.(int64)
+	uc, exists := ctx.Get("user")
+	if !exists {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	me, ok := uc.(UserClaims)
 	if !ok {
 		ctx.String(http.StatusOK, "系统错误")
 	}
-	u, err := h.svc.Profile(ctx, me)
+	u, err := h.svc.Profile(ctx, me.Id)
 
 	type Resp struct {
 		NickName  string
@@ -188,15 +249,25 @@ func (h *UserHandler) Edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "日期格式不对, 请输入yyyy-mm-dd的格式")
 		return
 	}
-	sess := sessions.Default(ctx)
-	uid := sess.Get("userId")
-	me, ok := uid.(int64)
-	if !ok {
-		ctx.String(http.StatusOK, "系统出错")
+	uc, exists := ctx.Get("user")
+	if !exists {
+		ctx.String(http.StatusOK, "系统错误")
+		return
 	}
+
+	me, ok := uc.(UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+	}
+	// sess := sessions.Default(ctx)
+	// uid := sess.Get("userId")
+	// me, ok := uid.(int64)
+	// if !ok {
+	// 	ctx.String(http.StatusOK, "系统出错")
+	// }
 	// t := carbon.Parse(req.Birthday).ToStdTime()
 	err = h.svc.Edit(ctx, domain.User{
-		Id:        me,
+		Id:        me.Id,
 		NickName:  req.NickName,
 		Birthday:  birthday,
 		Biography: req.Biography,
@@ -207,4 +278,11 @@ func (h *UserHandler) Edit(ctx *gin.Context) {
 	default:
 		ctx.String(http.StatusOK, "系统出错")
 	}
+}
+
+var JWTtoken = []byte("mY2gT5iP0xZ9eX7tZ5eU9zI4lW0xP0wI")
+
+type UserClaims struct {
+	Id int64
+	jwt.RegisteredClaims
 }

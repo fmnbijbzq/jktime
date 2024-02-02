@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook-redis
+spec:
+  selector:
+    matchLabels:
+      app: webook-redis
+  template:
+    metadata:
+      labels:
+        app: webook-redis
+    spec:
+      containers:
+      - name: webook-redis
+        image: bitnami/redis:latest
+        env:
+          - name: ALLOW_EMPTY_PASSWORD
+            value: "yes"
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 6379

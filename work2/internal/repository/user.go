@@ -25,7 +25,7 @@ func (repo *UserRepository) Create(ctx context.Context, u domain.User) error {
 		return ErrDuplicateEmail
 
 	}
-	return nil
+	return err
 }
 
 func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {

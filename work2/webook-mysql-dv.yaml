@@ -1,0 +1,56 @@
+# 定义mysql的Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mysql
+  name: mysql
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql:5.6
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-root-password
+              key: password
+          # 如果你不想使用secret对象保存mysql登录密码，可以直接使用下面的方式指定，简单粗暴未尝不可    
+          #value: "123456"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysqlvolume
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysqlvolume
+        # 使用pvc
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+---
+#定义mysql的Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: svc-mysql
+  name: svc-mysql
+  namespace: dev
+spec:
+  selector:
+    app: mysql
+  type: NodePort
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+    nodePort: 31234

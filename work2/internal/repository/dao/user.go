@@ -16,7 +16,7 @@ type User struct {
 	Email     string `gorm:"unique"`
 	Password  string
 	NickName  string
-	Birthday  time.Time
+	Birthday  time.Time `gorm:"default:(-)"`
 	Biography string
 	CreatedAt int64
 	UpdatedAt int64
