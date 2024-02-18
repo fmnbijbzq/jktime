@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -9,11 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrDuplicateEmail = errors.New("邮箱冲突")
+var ErrDuplicateUser = errors.New("用户冲突")
+var ErrUserNotFound = gorm.ErrRecordNotFound
 
 type User struct {
-	ID        int64  `gorm:"primaryKey;autoIncrement"`
-	Email     string `gorm:"unique"`
+	ID int64 `gorm:"primaryKey;autoIncrement"`
+	// 代表可以为NULL的列
+	Email     sql.NullString `gorm:"unique"`
+	Phone     sql.NullString `gorm:"unique"`
 	Password  string
 	NickName  string
 	Birthday  time.Time `gorm:"default:(-)"`
@@ -22,43 +26,61 @@ type User struct {
 	UpdatedAt int64
 }
 
-type UserDao struct {
+type UserDao interface {
+	Insert(ctx context.Context, u User) error
+	FindByEmail(ctx context.Context, email string) (User, error)
+	FindByPhone(ctx context.Context, phone string) (User, error)
+	FindById(ctx context.Context, id int64) (User, error)
+	UpdateById(ctx context.Context, u User) error
+}
+
+type GORMUserDao struct {
 	db *gorm.DB
 }
 
-func NewUserDao(db *gorm.DB) *UserDao {
-	return &UserDao{
+func NewUserDao(db *gorm.DB) UserDao {
+	return &GORMUserDao{
 		db: db,
 	}
 }
 
-func InitTables(db *gorm.DB) {
-	db.AutoMigrate(&User{})
+func InitTables(db *gorm.DB) error {
+	err := db.AutoMigrate(&User{})
+	return err
 }
 
-func (dao *UserDao) Insert(ctx context.Context, u User) error {
+func (dao *GORMUserDao) Insert(ctx context.Context, u User) error {
 	err := dao.db.WithContext(ctx).Create(&u).Error
 	if me, ok := err.(*mysql.MySQLError); ok {
 		const duplicateErr uint16 = 1062
 		if me.Number == duplicateErr {
-			return ErrDuplicateEmail
+			return ErrDuplicateUser
 		}
 	}
 	return err
 }
-func (dao *UserDao) FindByEmail(ctx context.Context, email string) (User, error) {
+
+func (dao *GORMUserDao) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
 
 	return u, err
 }
-func (dao *UserDao) FindById(ctx context.Context, id int64) (User, error) {
+
+func (dao *GORMUserDao) FindByPhone(ctx context.Context, phone string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("phone=?", phone).First(&u).Error
+
+	return u, err
+}
+
+func (dao *GORMUserDao) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("id=?", id).First(&u).Error
 	return u, err
 }
 
-func (dao *UserDao) UpdateById(ctx context.Context, u User) error {
+func (dao *GORMUserDao) UpdateById(ctx context.Context, u User) error {
 	err := dao.db.WithContext(ctx).Model(&u).Where("id=?", u.ID).Updates(u).Error
 
 	return err

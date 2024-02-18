@@ -55,7 +55,11 @@ func (m *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 func (m *LoginMiddlewareBuilder) CheckJWTLogin() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
-		if path == "/user/signup" || path == "/user/login" || path == "/user/hello" {
+		if path == "/user/signup" ||
+			path == "/user/login" ||
+			path == "/user/hello" ||
+			path == "/user/login_sms/code/send" ||
+			path == "/user/login_sms" {
 			return
 		}
 		authCode := ctx.Request.Header.Get("Authorization")
@@ -88,8 +92,8 @@ func (m *LoginMiddlewareBuilder) CheckJWTLogin() gin.HandlerFunc {
 		}
 
 		expireTime := uc.ExpiresAt
-		if expireTime.Sub(time.Now()) < time.Second*5 {
-			uc.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+		if expireTime.Sub(time.Now()) < time.Second*50 {
+			uc.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * 30))
 			ss, err := token.SignedString(web.JWTtoken)
 			if err != nil {
 				log.Println(err)
