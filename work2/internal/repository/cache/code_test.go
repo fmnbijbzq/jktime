@@ -4,9 +4,11 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"example/wb/config"
 	"example/wb/internal/repository/cache/redismock"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -121,6 +123,127 @@ func TestRedisCodeCache_Set(t *testing.T) {
 
 			err := redisCache.Set(tt.ctx, tt.biz, tt.phone, tt.code)
 			assert.Equal(t, tt.wantErr, err)
+		})
+
+	}
+}
+
+func TestRedisCodeCache_Set_e2e(t *testing.T) {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+
+	testCase := []struct {
+		name string
+
+		before func(t *testing.T)
+
+		after func(t *testing.T)
+
+		ctx   context.Context
+		biz   string
+		phone string
+		code  string
+
+		wantErr error
+	}{
+		{
+			name: "设置成功",
+
+			before: func(t *testing.T) {
+
+			},
+			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
+				key := "phone_code:login:123456"
+				dur, err := rdb.TTL(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.True(t, dur > time.Minute*9)
+				code, err := rdb.GetDel(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.Equal(t, "543210", code)
+			},
+
+			ctx:   context.Background(),
+			biz:   "login",
+			phone: "123456",
+			code:  "543210",
+		},
+		{
+			name: "系统错误",
+
+			before: func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				key := "phone_code:login:123456"
+				err := rdb.Set(ctx, key, "543210", 0).Err()
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
+				key := "phone_code:login:123456"
+				dur, err := rdb.TTL(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.True(t, dur == -1)
+				code, err := rdb.GetDel(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.Equal(t, "543210", code)
+			},
+
+			ctx:   context.Background(),
+			biz:   "login",
+			phone: "123456",
+			code:  "543210",
+
+			wantErr: errors.New("验证码存在，但没有过期时间"),
+		},
+		{
+			name: "验证码频繁发送",
+
+			before: func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				key := "phone_code:login:123456"
+				err := rdb.Set(ctx, key, "543210", time.Minute*10).Err()
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
+				key := "phone_code:login:123456"
+				dur, err := rdb.TTL(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.True(t, dur > time.Minute*9)
+				code, err := rdb.GetDel(ctx, key).Result()
+				assert.NoError(t, err)
+				assert.Equal(t, "543210", code)
+			},
+
+			ctx:   context.Background(),
+			biz:   "login",
+			phone: "123456",
+			code:  "543210",
+
+			wantErr: ErrSendTooMany,
+		},
+	}
+
+	for _, tt := range testCase {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.before(t)
+			defer tt.after(t)
+
+			c := NewCodeCache(rdb)
+			err := c.Set(tt.ctx, tt.biz, tt.phone, tt.code)
+			assert.Equal(t, tt.wantErr, err)
+
 		})
 
 	}
