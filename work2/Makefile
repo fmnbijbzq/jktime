@@ -5,3 +5,15 @@ docker:
 	@GOOS=linux GOARCH=arm go build -tags=k8s -o webook .
 	@docker rmi -f bzq/webook:v0.0.1
 	@docker build -t bzq/webook:v0.0.1 .
+
+.PHONY: mock
+mock:
+	@mockgen -source=internal/service/user.go -package=svcmock -destination=internal/service/mocks/user_mock.go
+	@mockgen -source=internal/service/code.go -package=svcmock -destination=internal/service/mocks/code_mock.go
+	@mockgen -source=internal/repository/user.go -destination=internal/repository/mock/user_mock.go -package=repomock
+	@mockgen -source=internal/repository/code.go -destination=internal/repository/mock/code_mock.go -package=repomock
+	@mockgen -source=internal/repository/dao/user.go -destination=internal/repository/dao/mock/user_mock.go -package=daomock
+	@mockgen -source=internal/repository/cache/code.go -destination=internal/repository/cache/mock/code_mock.go -package=cachemock
+	@mockgen -source=internal/repository/cache/user.go -destination=internal/repository/cache/mock/user_mock.go -package=cachemock
+	@mockgen -package=redismock -destination=internal/repository/cache/redismock/cmd_mock.go github.com/redis/go-redis/v9 Cmdable 
+	@go mod tidy

@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"golang.org/x/net/context"
+	"gorm.io/gorm"
 )
 
 type UserRepository interface {
@@ -44,6 +45,9 @@ func (repo *CachedUserRepository) Create(ctx context.Context, u domain.User) err
 
 func (repo *CachedUserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
 	u, err := repo.dao.FindByEmail(ctx, email)
+	if err == gorm.ErrRecordNotFound {
+		return domain.User{}, ErrUserNotFound
+	}
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -68,16 +72,23 @@ func (repo *CachedUserRepository) FindById(ctx context.Context, id int64) (domai
 	// 1. redis崩溃了，网络出错了
 	// 2. redis是正常的，redis中不存在当前key
 	u, err := repo.dao.FindById(ctx, id)
+	if err == ErrUserNotFound {
+		return domain.User{}, ErrUserNotFound
+	}
 	if err != nil {
 		return domain.User{}, err
 	}
 	var du = repo.toDomain(u)
-	go func() {
-		err = repo.cache.Set(ctx, du)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
+	err = repo.cache.Set(ctx, du)
+	if err != nil {
+		log.Println(err)
+	}
+	// go func() {
+	// 	err = repo.cache.Set(ctx, du)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 	}
+	// }()
 	return du, nil
 }
 

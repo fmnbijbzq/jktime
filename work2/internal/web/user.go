@@ -73,9 +73,11 @@ func (h *UserHandler) SignUp(ctx *gin.Context) {
 	isEmail, err := h.EmailRegexExp.MatchString(sr.Email)
 	if err != nil {
 		ctx.String(http.StatusOK, "系统错误")
+		return
 	}
 	if !isEmail {
 		ctx.String(http.StatusOK, "email不合法")
+		return
 	}
 	if sr.Password != sr.ConfirmPassword {
 		ctx.String(http.StatusOK, "两次密码不同")
