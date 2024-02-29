@@ -9,8 +9,6 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	probing "github.com/prometheus-community/pro-bing"
 )
 
 type Service struct {
@@ -19,15 +17,6 @@ type Service struct {
 	durTimes []int
 	mu       sync.Mutex
 }
-
-// type AsyncSMSService struct {
-// 	svc      sms.Service
-// 	smsRepo  repository.SmsRepository
-// 	codeRepo repository.CodeRepository
-// 	dur      time.Duration // 重试间隔
-// 	times    int           // 重试次数
-// 	mu       sync.Mutex
-// }
 
 func NewService(svc sms.Service,
 	repo repository.AsyncSmsRepository) *Service {
@@ -119,10 +108,6 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	return err
 }
 
-// func (s *Service) needAsync() bool {
-// 	return true
-// }
-
 // 1. 应该创建一个数据库表用来存储限流，崩溃后的数据
 // 1.1 通过gorm进行异步请求表的搭建
 // 2. 数据库字段应该包括 tplId, args(也就是验证码) numbers(电话号码)
@@ -149,107 +134,3 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 //  针对2不足，可以考虑将没有发送的信息存入redis中，来减少数据库的压力
 //  针对3不足，可以增加本地缓存，在数据库（redis）崩溃的时候，将数据存入本地缓存中
 //  针对4不足，可以考虑修改部分代码，将biz字段传过来
-
-// func (s *AsyncSMSService) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
-// 	err := s.svc.Send(ctx, tplId, args, numbers...)
-// 	if err == nil {
-// 		return err
-// 	}
-// 	// 触发限流，发送到数据库中, 这个装饰器应该放到限流之后
-// 	if err == ratelimit.ErrSMSLimitRate {
-// 		for i := 0; i < len(args); i++ {
-// 			err := s.Save(ctx, tplId, args[i], numbers[i])
-// 			if err != nil {
-// 				log.Println(err)
-// 			}
-// 		}
-// 		return ratelimit.ErrSMSLimitRate
-// 	} else {
-// 		// 尝试ping服务商的域名, 如果服务商的崩溃大概率是服务器宕机了, 如果ping不通
-// 		// 那么证明服务商崩溃了
-// 		// 后续改进，需要将不同运营商的短信服务地址抽取出来，方便动态获取
-// 		// ok, err := s.Ping(ctx, "sms.tencentcloudapi.com")
-// 		ok, err := s.Ping(ctx, "adsfas")
-// 		if !ok || err != nil {
-// 			for i := 0; i < len(args); i++ {
-// 				err := s.Save(ctx, tplId, args[i], numbers[i])
-// 				if err != nil {
-// 					log.Println(err)
-// 				}
-// 			}
-// 		}
-// 	}
-
-// 	// for _, phone := range args {
-// 	// 	go s.AsyncSend(ctx, phone)
-// 	// }
-
-// 	return err
-// }
-
-// func (s *AsyncSMSService) Save(ctx context.Context, tplId string, args string, number string) error {
-// 	err := s.smsRepo.Create(ctx, domain.Sms{
-// 		Phone: args,
-// 		TplId: tplId,
-// 		Code:  number,
-// 		Biz:   bizLogin,
-// 	})
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func (s *AsyncSMSService) AsyncSendV1() {
-
-// }
-
-// func (s *AsyncSMSService) AsyncSend(ctx context.Context, phone string) error {
-// 	s.mu.Lock()
-// 	ss, err := s.smsRepo.FindByPhone(ctx, phone)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	for _, ds := range ss {
-// 		err = s.smsRepo.DeleteById(ctx, ds.ID)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	s.mu.Unlock()
-
-// 	for _, ds := range ss {
-// 		// 重试间隔
-// 		time.Sleep(s.dur)
-// 		for i := 0; i < s.times; i++ {
-// 			// 考虑到如果进入异步发送那么意味着本地redis运行正常
-// 			// 短信运营商大概率有问题，那么先进行短信的发送
-// 			// 然后进行redis的缓存
-// 			err := s.svc.Send(ctx, ds.TplId, []string{ds.Phone}, ds.Code)
-// 			if err != nil {
-// 				log.Printf("第%d次发送失败，原因为%s", i+1, err)
-// 			} else {
-// 				err = s.codeRepo.Set(ctx, ds.Biz, ds.Phone, ds.Code)
-// 				if err != nil {
-// 					log.Printf("第%d次缓存失败，原因为%s", i, err)
-// 				}
-// 				break
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
-
-func (s *Service) Ping(ctx context.Context, endpoint string) (bool, error) {
-	pinger, err := probing.NewPinger(endpoint)
-	if err != nil {
-		return false, err
-	}
-	pinger.Count = 3
-	err = pinger.Run()
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-
-}
