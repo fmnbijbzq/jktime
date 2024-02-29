@@ -2,13 +2,14 @@ package localsms
 
 import (
 	"context"
+	"example/wb/internal/service/sms"
 	"log"
 )
 
 type LocalService struct {
 }
 
-func NewLocalService() *LocalService {
+func NewLocalService() sms.Service {
 	return &LocalService{}
 }
 

@@ -4,6 +4,7 @@ import (
 	"example/wb/internal/web"
 	login "example/wb/internal/web/middleware"
 	"example/wb/pkg/ginx/middleware/ratelimit"
+	"example/wb/pkg/limiter"
 	"strings"
 	"time"
 
@@ -33,7 +34,7 @@ func InitGinMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
 			},
 			MaxAge: 12 * time.Hour,
 		}),
-		ratelimit.NewBuilder(redisClient, time.Second, 1000).Build(),
+		ratelimit.NewBuilder(limiter.NewRedisLimter(redisClient, time.Second, 1000)).Build(),
 		(&login.LoginMiddlewareBuilder{}).CheckJWTLogin(),
 	}
 

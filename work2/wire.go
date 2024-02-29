@@ -19,11 +19,12 @@ func InitWebServer() *gin.Engine {
 		// 初始化第三方依赖
 		ioc.InitFreeCache,
 		ioc.InitRedis, ioc.InitDB,
-		dao.NewUserDao,
+		dao.NewUserDao, dao.NewSmsDao,
 		// cache部分
 		cache.NewUserCache, cache.NewCodeLocalCache,
 		// repository部分
 		repository.NewCachedCodeRepository, repository.NewCachedUserRepository,
+		repository.NewAsyncSMSRepository,
 
 		ioc.InitSMSService, service.NewCodeService, service.NewUserService,
 

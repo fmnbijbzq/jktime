@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	smsl "example/wb/internal/service/sms"
+
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/errors"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
@@ -16,7 +18,8 @@ type SMSSerivce struct {
 	signName string
 }
 
-func NewService(client *sms.Client, appId string, signName string) *SMSSerivce {
+func NewService(client *sms.Client, appId string, signName string) smsl.Service {
+
 	return &SMSSerivce{
 		client:   client,
 		appId:    appId,

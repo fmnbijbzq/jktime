@@ -44,11 +44,6 @@ func NewUserDao(db *gorm.DB) UserDao {
 	}
 }
 
-func InitTables(db *gorm.DB) error {
-	err := db.AutoMigrate(&User{})
-	return err
-}
-
 func (dao *GORMUserDao) Insert(ctx context.Context, u User) error {
 	err := dao.db.WithContext(ctx).Create(&u).Error
 	if me, ok := err.(*mysql.MySQLError); ok {
