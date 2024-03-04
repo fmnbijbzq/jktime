@@ -8,6 +8,7 @@ import (
 	"example/wb/internal/repository/dao"
 	"example/wb/internal/service"
 	"example/wb/internal/web"
+	ijwt "example/wb/internal/web/jwt"
 	"example/wb/ioc"
 
 	"github.com/gin-gonic/gin"
@@ -19,16 +20,19 @@ func InitWebServer() *gin.Engine {
 		// 初始化第三方依赖
 		ioc.InitFreeCache,
 		ioc.InitRedis, ioc.InitDB,
+		ioc.InitWechatService,
+		ioc.InitLogger,
+
 		dao.NewUserDao, dao.NewSmsDao,
 		// cache部分
 		cache.NewUserCache, cache.NewCodeLocalCache,
 		// repository部分
 		repository.NewCachedCodeRepository, repository.NewCachedUserRepository,
 		repository.NewAsyncSMSRepository,
-
+		// service部分
 		ioc.InitSMSService, service.NewCodeService, service.NewUserService,
-
-		web.NewUserHandler,
+		// web部分
+		web.NewUserHandler, web.NewOAuth2WechatHandler, ijwt.NewJwtHandler,
 
 		ioc.InitGinMiddlewares,
 		ioc.InitWebServer,

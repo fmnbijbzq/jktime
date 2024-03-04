@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,6 +19,7 @@ type UserService interface {
 	SignUp(ctx context.Context, u domain.User) error
 	Login(ctx context.Context, u domain.User) (domain.User, error)
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
+	FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error)
 	Edit(ctx context.Context, u domain.User) error
 	Profile(ctx context.Context, id int64) (domain.User, error)
 }
@@ -83,6 +85,29 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 	// 主从延迟，理论上来讲，强制走主库
 	return svc.repo.FindByPhone(ctx, phone)
 
+}
+
+func (svc *userService) FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error) {
+
+	// 先找一下数据库，我们认为大部分用户都存在
+	u, err := svc.repo.FindByWechat(ctx, wechatInfo.Openid)
+	if err != repository.ErrUserNotFound {
+		return u, err
+	}
+	// 用户没有找到
+	// json格式wechatInfo
+	zap.L().Info("新用户", zap.Any("wechatInfo", wechatInfo))
+	err = svc.repo.Create(ctx, domain.User{
+		WechatInfo: wechatInfo,
+	})
+	// 有两种错误用户, 唯一索引冲出（phone）
+	// 一种是err != nil, 系统错误
+	if err != nil && err != ErrDuplicateUser {
+		return domain.User{}, err
+	}
+	// 要么err == nil, err==ErrDuplicateUser, 代表用户存在
+	// 主从延迟，理论上来讲，强制走主库
+	return svc.repo.FindByWechat(ctx, wechatInfo.Openid)
 }
 
 func (svc *userService) Edit(ctx context.Context, u domain.User) error {

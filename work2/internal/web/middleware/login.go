@@ -1,13 +1,12 @@
-package login
+package middleware
 
 import (
 	"encoding/gob"
-	"example/wb/internal/web"
 	"fmt"
-	"log"
 	"net/http"
-	"strings"
 	"time"
+
+	ijwt "example/wb/internal/web/jwt"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -15,6 +14,13 @@ import (
 )
 
 type LoginMiddlewareBuilder struct {
+	ijwt.Handler
+}
+
+func NewLoginMiddlewareBuilder(hdl ijwt.Handler) *LoginMiddlewareBuilder {
+	return &LoginMiddlewareBuilder{
+		Handler: hdl,
+	}
 }
 
 func (m *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
@@ -59,25 +65,17 @@ func (m *LoginMiddlewareBuilder) CheckJWTLogin() gin.HandlerFunc {
 			path == "/user/login" ||
 			path == "/user/hello" ||
 			path == "/user/login_sms/code/send" ||
-			path == "/user/login_sms" {
+			path == "/user/login_sms" ||
+			path == "/oauth2/wechat/authurl" ||
+			path == "/oauth2/wechat/callback" {
 			return
 		}
-		authCode := ctx.Request.Header.Get("Authorization")
-		if authCode == "" {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		segs := strings.Split(authCode, " ")
-		if len(segs) != 2 {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		tokenStr := segs[1]
+		tokenStr := m.ExtractToken(ctx)
 
-		var uc web.UserClaims
+		var uc ijwt.UserClaims
 
 		token, err := jwt.ParseWithClaims(tokenStr, &uc, func(t *jwt.Token) (interface{}, error) {
-			return web.JWTtoken, nil
+			return ijwt.JWTtoken, nil
 		})
 		if err != nil {
 			// token 解析不出
@@ -90,16 +88,21 @@ func (m *LoginMiddlewareBuilder) CheckJWTLogin() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-
-		expireTime := uc.ExpiresAt
-		if expireTime.Sub(time.Now()) < time.Second*50 {
-			uc.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * 30))
-			ss, err := token.SignedString(web.JWTtoken)
-			if err != nil {
-				log.Println(err)
-			}
-			ctx.Header("x-jwt-token", ss)
+		err = m.CheckSession(ctx, uc.Ssid)
+		if err != nil {
+			// token无效或者redis有问题
+			// 过于严格
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
 		}
+		// 可以兼容redis异常时的情况
+		// 同时要做好监控有没有error
+		// 通常情况下使用这种写法
+		// if cnt > 0 {
+		// 	ctx.AbortWithStatus(http.StatusUnauthorized)
+		// 	return
+		// }
+
 		ctx.Set("user", uc)
 
 	}

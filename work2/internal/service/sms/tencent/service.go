@@ -10,6 +10,7 @@ import (
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/errors"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
+	"go.uber.org/zap"
 )
 
 type SMSSerivce struct {
@@ -82,6 +83,8 @@ func (svc *SMSSerivce) Send(ctx context.Context, tplId string, args []string, nu
 
 	// 通过client对象调用想要访问的接口，需要传入请求对象
 	response, err := svc.client.SendSms(request)
+	zap.L().Debug("请求腾讯SendSMS",
+		zap.Any("req", request), zap.Any("resp", response))
 	// 处理异常
 	if _, ok := err.(*errors.TencentCloudSDKError); ok {
 		fmt.Printf("An API error has returned: %s", err)

@@ -12,4 +12,6 @@ type User struct {
 	Biography string
 	CreatedAt int64 `json:"-"`
 	UpdatedAT int64 `json:"-"`
+
+	WechatInfo WechatInfo
 }

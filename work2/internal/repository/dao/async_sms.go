@@ -12,15 +12,6 @@ import (
 
 var ErrWaitingSMSNotFound = gorm.ErrRecordNotFound
 
-type Sms struct {
-	ID int64 `gorm:"primaryKey;autoIncrement"`
-	// 代表可以为NULL的列
-	Phone     string `gorm:"unique"`
-	Code      string
-	TplId     string
-	CreatedAt int64
-}
-
 type AsyncSmsDao interface {
 	Insert(ctx context.Context, s AsyncSms) error
 	GetWaitingSMS(ctx context.Context) (AsyncSms, error)
