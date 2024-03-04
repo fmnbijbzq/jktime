@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -13,41 +11,12 @@ import (
 	"go.uber.org/zap"
 )
 
-type Conn struct {
-	Addr  string
-	State int
-}
-
-var c *Conn
-var mu sync.Mutex
-
-func GetInstance() *Conn {
-	if c == nil {
-		mu.Lock()
-		defer mu.Unlock()
-		if c == nil {
-			c = &Conn{Addr: "127.0.0.1", State: 5}
-		}
-	}
-	return c
-}
-
 func main() {
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			dd := GetInstance()
-			fmt.Printf("addr: %p\n", dd)
-		}()
-	}
-	wg.Wait()
 	// initViper()
-	// initViperRemote()
+	initViperRemote()
 	// // initViperWatch()
-	// server := InitWebServer()
-	// server.Run(":8081")
+	server := InitWebServer()
+	server.Run(":8081")
 }
 
 func initLogger() {

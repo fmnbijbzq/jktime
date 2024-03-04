@@ -115,7 +115,8 @@ func (h *UserHandler) SignUp(ctx *gin.Context) {
 	default:
 		ctx.String(http.StatusOK, "系统错误")
 	}
-	return
+
+	defer h.LogPrint(err)
 }
 
 func (h *UserHandler) Login(ctx *gin.Context) {
@@ -151,6 +152,8 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "系统错误")
 	}
 
+	defer h.LogPrint(err)
+
 }
 
 func (h *UserHandler) LoginJWT(ctx *gin.Context) {
@@ -181,6 +184,8 @@ func (h *UserHandler) LoginJWT(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "系统错误")
 	}
 
+	defer h.LogPrint(err)
+
 }
 
 func (h *UserHandler) LogoutJWT(ctx *gin.Context) {
@@ -195,6 +200,8 @@ func (h *UserHandler) LogoutJWT(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "退出成功",
 	})
+
+	defer h.LogPrint(err)
 }
 
 func (h *UserHandler) RefreshToken(ctx *gin.Context) {
@@ -227,6 +234,8 @@ func (h *UserHandler) RefreshToken(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})
+
+	defer h.LogPrint(err)
 
 }
 
@@ -268,6 +277,8 @@ func (h *UserHandler) SendSMSLoginCode(ctx *gin.Context) {
 		})
 		// 补日志
 	}
+
+	defer h.LogPrint(err)
 }
 
 func (h *UserHandler) LoginSMS(ctx *gin.Context) {
@@ -313,6 +324,8 @@ func (h *UserHandler) LoginSMS(ctx *gin.Context) {
 		Msg: "登录成功",
 	})
 
+	defer h.LogPrint(err)
+
 }
 
 func (h *UserHandler) Profile(ctx *gin.Context) {
@@ -344,6 +357,8 @@ func (h *UserHandler) Profile(ctx *gin.Context) {
 	default:
 		ctx.String(http.StatusOK, "系统出错")
 	}
+
+	defer h.LogPrint(err)
 }
 
 func (h *UserHandler) Edit(ctx *gin.Context) {
@@ -411,5 +426,13 @@ func (h *UserHandler) Edit(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "编辑成功")
 	default:
 		ctx.String(http.StatusOK, "系统出错")
+	}
+
+	defer h.LogPrint(err)
+}
+
+func (h *UserHandler) LogPrint(err error) {
+	if err != nil {
+		h.l.Debug(err.Error())
 	}
 }
