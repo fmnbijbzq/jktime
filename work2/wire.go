@@ -40,3 +40,8 @@ func InitWebServer() *gin.Engine {
 	return gin.Default()
 
 }
+
+func InitArticleHandler(dao dao.ArticleDao) *web.ArticleHandler {
+	wire.Build()
+	return &web.ArticleHandler{}
+}

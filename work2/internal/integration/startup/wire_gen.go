@@ -12,6 +12,7 @@ import (
 	"example/wb/internal/repository/dao"
 	"example/wb/internal/service"
 	"example/wb/internal/web"
+	"example/wb/internal/web/jwt"
 	"example/wb/ioc"
 	"github.com/gin-gonic/gin"
 )
@@ -20,8 +21,10 @@ import (
 
 func InitWebServer() *gin.Engine {
 	cmdable := ioc.InitRedis()
-	v := ioc.InitGinMiddlewares(cmdable)
-	db := ioc.InitDB()
+	handler := jwt.NewJwtHandler(cmdable)
+	logger := ioc.InitLogger()
+	v := ioc.InitGinMiddlewares(cmdable, handler, logger)
+	db := ioc.InitDB(logger)
 	userDao := dao.NewUserDao(db)
 	userCache := cache.NewUserCache(cmdable)
 	userRepository := repository.NewCachedUserRepository(userDao, userCache)
@@ -33,9 +36,21 @@ func InitWebServer() *gin.Engine {
 	asyncSmsRepository := repository.NewAsyncSMSRepository(asyncSmsDao)
 	smsService := ioc.InitSMSService(cmdable, asyncSmsRepository)
 	codeService := service.NewCodeService(codeRepository, smsService)
-	userHandler := web.NewUserHandler(userService, codeService)
+	userHandler := web.NewUserHandler(userService, handler, logger, codeService)
 	wechatService := ioc.InitWechatService()
-	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService)
+	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, handler, logger, userService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler)
 	return engine
+}
+
+//	func InitUserHandler(dao dao.ArticleDao) *web.UserHandler {
+//		wire.Build()
+//		return &web.UserHandler{}
+//	}
+func InitArticleHandler(dao2 dao.ArticleDAO) *web.ArticleHandler {
+	articleRepository := repository.NewArticleRepository(dao2)
+	logger := ioc.InitLogger()
+	articleService := service.NewArticleService(articleRepository, logger)
+	articleHandler := web.NewArticleHandler(articleService, logger)
+	return articleHandler
 }
